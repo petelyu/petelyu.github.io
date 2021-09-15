@@ -1,0 +1,256 @@
+<!DOCTYPE HTML>
+<!--
+	Editorial by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<title>PFL: Extras</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<div id="main">
+						<div class="inner">
+
+							<!-- Header -->
+								<header id="header">
+									<a href="index.html" class="logo"></a>
+									<ul class="icons">
+										<li><a href="https://twitter.com/petelyu" target="_blank" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
+										<li><a href="https://www.linkedin.com/in/peter-lyu-9053ab37/" target="_blank" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
+										<li><a href="https://github.com/petelyu" target="_blank" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+									</ul>
+								</header>
+
+							<!-- Content -->
+								<section>
+									<header class="main">
+										<h1>Extras: Side Projects & Resources</h1>
+									</header>
+									<p>In addition to my research, I have produced and continue to develop a number of side projects - some offering helpful resources for researchers and others that are simply fun weekend activities. Explore some of these below and feel free to suggest improvements or new ideas.</p>
+									<hr />
+									<h2 id="rstatlib"><a href="https://github.com/petelyu/r-stat-library" target="_blank">R Statistics Library</a></h2>
+										<p>The R STATISTICS LIBRARY is a collection of useful R code for data management, exploration, modeling, evaluation, and reporting that I have compiled over the course of my research career. The Library assembles and organizes code drawn from my own research and graduate coursework and includes useful code shared from colleagues in and around the PhD in Health Policy Program at Harvard University. Like my research, this project continues to evolve as I learn new packages and functionalities. The Library is not and does not aim to be an exhaustive summary of the R statistics world; rather, the Library represents a convenience set of commonly used code that is easier to reference when compiled into a single script.  </br>
+										</br>
+										The full R Statistics Library can be found <a href="https://github.com/petelyu/r-stat-library" target="_blank">here</a>. See an excerpt below:</p>
+									<pre><code># =================================== #
+# =================================== #
+#         R STATISTICS LIBRARY        #
+#                                     #
+#              Peter Lyu              #
+#                                     #
+# ----------------------------------- #
+# Last Updated: 09/02/2021            #
+# =================================== #
+# =================================== #
+
+
+#*******************************************************************************************************#
+###### Table of Contents ######
+# The library consists of the following sections, organized by purpose:
+#   (I)   MANAGEMENT
+#   (II)  EXPLORATION
+#   (III) MODELING
+#   (IV)  DIAGNOSTICS/EVALUATION
+#   (V)   REPORTING
+
+# Packages with useful example datasets
+library(car)
+library(faraway)
+#*******************************************************************************************************#
+
+
+#*******************************************************************************************************#
+##### SECTION I: MANAGEMENT #####
+##### Part A: Reading Data #####
+  # Read in different data types
+    # SAS data ("read_sas" imports data as tables)
+      library(haven)
+      dat <- as.data.frame(read_sas("dat.sas7bdat"))
+    # Stata data
+      # Note: 'foreign' package can't read beyond Stata 12 data
+      library(foreign)
+      dat <- read.dta("dat.dta")
+      library(haven)
+      dat <- as.data.frame(read_dta("dat.dta"))
+    # CSV data
+      dat <- read.csv(file="dat.csv", header=T, sep=",")
+
+  # Read in series of data files, all with same prefix, as a list object
+    lapply(Sys.glob("data*.csv"),read.csv)
+
+  # Read in series of data files, separately
+    for(i in 1:4) {
+      nam <- paste("data_", i, sep = "")
+      assign(nam, read.csv(paste("data_", i,".csv", sep="")))
+    }
+
+  # Determine class of all variables of a dataframe
+    lapply(dat,class)
+
+##### Part B: Transposing Data #####
+  # Long-to-Wide
+    # NOTE: Requires "timevar" who's values will be appended to transposed variables
+    # IMPORTANT: reshape() requires a DATAFRAME argument! Will not work correctly with DATATABLE objects
+    # Adding time variable (i.e. counter)
+      data$i <- with(data,ave(id,id,FUN=seq_along))
+      reshape(data,idvar="id",timevar="i",direction="wide")
+      
+  # Wide-to-Long
+    # NOTE: Much easier when dat is limited to only those variables which are being transposed
+      reshape(dat,idvar="id",varying=c("var_1","var_2","var_3"),v.names="var",sep="_",direction="long")
+      reshape(dat,idvar="id",varying=c(2:4),v.names="var",sep="_",direction="long")
+      
+##### Part C: Loops #####
+  # For Loop: [index] in vector
+      for (i in c(1,2,3,4)) {
+        var = i
+      }
+      
+  # SAS "Macro"-like loops via lapply()
+    # Example: looping over dataframes indexed by year, e.g. data2000, data2001,... (taken from Stack Overflow)
+      years <- 2000:2002
+      dataList <- lapply(years, function(x){
+        #Create name of data set as character object
+        dsname <- paste0("data",x)
+        #Call data set from character object using get() (example process here removes obs with non-missing var)
+        dat <- get(dat)[is.na(var)==0]
+        #Create year variable
+        dat$year <- x
+        #Output data set in resulting list
+        dat
+      })
+      #Append data sets
+      dat_2000_2002 <- do.call(rbind,dataList)
+      
+##### Part D: Parallel Processing #####
+  # Using dopar
+      library(foreach)
+      library(doParallel)
+    # STEP 1: Data cleaning/setup before processes that require parallelizing
+    # STEP 2: Set number of cores to use (below code uses all minus one cores)
+      no_cores <- detectCores() - 1
+    # STEP 3: Generate n_cores clusters based on local environment
+      cl <- makeCluster(no_cores)
+    # STEP 4: Register clusters (to identify which cluster set to be used for parallelized processing)
+      registerDoParallel(cl)
+    # STEP 5: Loop processes, which assign different independent loop iterations to different cores
+      # Example 1: Parallel Fits 
+      #   Fits different models with different formulas (contained in list and defined
+      #   prior to makeCluster() and outputs a nested list. E.g. all_fits[[1]][[1]] contains the estimates
+      #   from Model 1 and all_fits[[1]][[2]] contains the robust var-cov matrix of Model 1.
+      all_fits <- foreach(i=1:n_models,
+                          .packages = c("sandwich","lmtest","foreach","doParallel"),
+                          .combine = list,
+                          .multicombine = T) %dopar% {
+        model <- lm(formulas[[i]], data=dat)
+        cluster_vcov <- vcovHC(model, type="HC1", cluster="clustervar")
+        list(model,cluster_vcov)
+                          }
+      # Example 2: Parallel Prints
+      #   Prints different sets of models together using stargazer package.
+      combos_models <- list(list(all_fits[[1]][[1]], all_fits[[2]][[1]], all_fits[[3]][[1]]),
+                            list(all_fits[[4]][[1]]),
+                            list(all_fits[[5]][[1]]))
+      combos_se <- list(list(sqrt(diag(all_fits[[1]][[2]])), sqrt(diag(all_fits[[2]][[2]])), sqrt(diag(all_fits[[3]][[2]]))),
+                        list(sqrt(diag(all_fits[[4]][[2]]))),
+                        list(sqrt(diag(all_fits[[5]][[2]]))))
+      foreach(1:3, .packages=c("stargazer"),.export=c("combos_models","combos_se")) %dopar% {
+        stargazer(combo_models[[i]],
+                  align=T,
+                  omit.stat="f",
+                  type="html",
+                  se=combos_se[[i]],
+                  out=paste("address/Model Results - Set ",i,".html",sep=""))
+                        }
+    # STEP 6: Stop/Close clusters
+      stopCluster(cl)
+
+...
+</code></pre>
+									<hr />
+									<h2 id="areaneighbors"><a href="https://github.com/petelyu/Area-Neighbors" target="_blank">Area Neighbors</a></h2>
+										<p>For one of my research projects, I faced a very straightforward data challenge: <i>How do I find all neighboring Hospital Referral Regions (HRR) for each HRR?</i> Well, I pulled together that data so you never have to and outlined a procedure that should also be generalizable to other other area definitions (e.g., ZIPs). You can find these resources <a href="https://github.com/petelyu/Area-Neighbors" target="_blank">here</a>. </p>
+									<hr />
+									<h2 id="crossword"><a href="https://github.com/petelyu/Crossword" target="_blank">Health Policy Crossword Puzzle</a></h2>
+										<p>When COVID first struck the US, it was a scary few months and I spent a lot more time inside than I have in a long, long time. To make the most out of these circumstances and share some positivity, I practiced my love of crosswords and wrote a health policy-themed puzzle. It's no Saturday or Sunday crossword, but I hope health policy nerds can enjoy and appreciate a few of the clues. The puzzle works best printed out, and you can download PDF and DOCX versions <a href="https://github.com/petelyu/Crossword" target="_blank">here</a>.</p>
+										<div class="row gtr-200">
+											<div class="col-6 col-12-medium">
+												<span class="image fit"><img src="images/Health Policy Crossword (2021_09_07).png" alt="" /></span>
+											</div>
+											<div class="col-6 col-12-medium">
+											</div>
+										</div>
+								</section>
+
+								<!-- Footer -->
+								<footer id="footer">
+									<p class="copyright">&copy; 2021 Peter Lyu. All rights reserved. Design by <a href="https://html5up.net" target="_blank">HTML5 UP</a>. Hosted on <a href="https://pages.github.com" target="_blank">GitHub Pages</a>.</p>
+								</footer>
+
+						</div>
+					</div>
+
+				<!-- Sidebar -->
+					<div id="sidebar">
+						<div class="inner">
+
+							<!-- Menu -->
+								<nav id="menu">
+									<header class="major">
+										<h2>Menu</h2>
+									</header>
+									<ul>
+										<li><a href="index.html">About Me</a></li>
+										<li>
+											<span class="opener">Dissertation</span>
+											<ul>
+												<li><a href="dissertation.html#paper1">Soft Consolidation</a></li>
+												<li><a href="dissertation.html#paper2">Benchmarking & Selection</a></li>
+												<li><a href="dissertation.html#paper3">ACOs & Referrals</a></li>
+											</ul>
+										</li>
+										<li><a href="publications.html">Publications</a></li>
+										<li>
+											<span class="opener">Extras</span>
+											<ul>
+												<li><a href="repositories.html#rstatlib">R Stat Library</a></li>
+												<li><a href="repositories.html#areaneighbors">Area Neighbors</a></li>
+												<li><a href="repositories.html#crossword">Crossword</a></li>
+											</ul>
+										</li>
+									</ul>
+								</nav>
+
+							<!-- Section -->
+								<section>
+									<header class="major">
+										<h2>Want to connect?</h2>
+									</header>
+									<ul class="contact">
+										<li class="icon solid fa-envelope"><a href="mailto:mail@peterlyu.me" target="_blank">mail@peterlyu.me</a></li>
+										<li class="icon brands fa-linkedin"><a href="https://www.linkedin.com/in/peter-lyu-9053ab37/" target="_blank">LinkedIn</a></li>
+									</ul>
+								</section>
+						</div>
+					</div>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
